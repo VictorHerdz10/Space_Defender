@@ -23,27 +23,33 @@ const difficultySettings = {
 };
 
 // Configuración de niveles generados dinámicamente
-function generateLevels(count, difficulty = 'medium') {
+export function generateLevels(count, difficulty = 'medium') {
     const difficultyConfig = difficultySettings[difficulty] || difficultySettings.medium;
     const levels = [];
     
     for (let i = 1; i <= count; i++) {
-        const baseEnemies = Math.floor((5 + Math.floor(i * 1.2)) * difficultyConfig.enemyCount);
+        // Ajustar cantidad de enemigos para móvil
+        const isMobile = window.matchMedia("(max-width: 768px)").matches;
+        const baseEnemies = Math.floor((5 + Math.floor(i * 1.2)) * difficultyConfig.enemyCount * (isMobile ? 0.7 : 1));
         const health = Math.floor((1 + Math.floor(i / 3)) * difficultyConfig.multipliers.health);
         const speed = (1.5 + (i * 0.15)) * difficultyConfig.multipliers.speed;
         const fireRate = Math.max(300, 2000 - (i * 30) * difficultyConfig.multipliers.fireRate);
         
-        const formations = ['line', 'square', 'circle', 'mixed', 'spiral', 'phalanx'];
+        // Formaciones ajustadas para móvil
+        const formations = isMobile ? 
+            ['line', 'square', 'circle', 'mixed'] : // Eliminamos formaciones complejas para móvil
+            ['line', 'square', 'circle', 'mixed', 'spiral', 'phalanx'];
+        
         const formation = formations[(i - 1) % formations.length];
         
-        // Enemigos especiales
+        // Enemigos especiales con ajustes para móvil
         const hasBoss = i > 10 && i % 5 === 0;
         const hasElite = i > 7 && i % 3 === 0;
         const hasMissileEnemies = i > 15;
         
         levels.push({
             number: i,
-            enemies: baseEnemies + (hasBoss ? 1 : 0) + (hasElite ? 2 : 0),
+            enemies: Math.min(isMobile ? 15 : 30, baseEnemies + (hasBoss ? 1 : 0) + (hasElite ? 2 : 0)),
             enemyHealth: Math.min(15, health),
             enemySpeed: Math.min(6, speed),
             enemyFireRate: fireRate,
@@ -54,12 +60,13 @@ function generateLevels(count, difficulty = 'medium') {
             hasMissileEnemies: hasMissileEnemies,
             difficulty: difficulty,
             fireRate: Math.max(250, 2000 - (i * 40) * difficultyConfig.multipliers.fireRate),
+            isMobileOptimized: isMobile // Añadimos flag para móvil
         });
     }
     return levels;
 }
 
-function getLevelDescription(level, formation, difficulty) {
+ function getLevelDescription(level, formation, difficulty) {
     const formations = {
         'line': 'formación en línea',
         'square': 'formación cuadrada',
@@ -112,56 +119,10 @@ const baseConfig = {
     difficulty: 'medium' // Valor por defecto
 };
 
-// Clases auxiliares
-class Star {
-    constructor(gameWidth, gameHeight) {
-        this.x = Math.random() * gameWidth;
-        this.y = Math.random() * gameHeight;
-        this.size = Math.random() * 2 + 0.5;
-        this.brightness = Math.random();
-    }
-
-    draw(ctx) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${this.brightness})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-class Particle {
-    constructor(x, y, vx, vy, color, size, lifetime) {
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
-        this.color = color;
-        this.size = size;
-        this.lifetime = lifetime;
-        this.maxLifetime = lifetime;
-    }
-
-    update(deltaTime) {
-        const timeFactor = deltaTime / 16;
-        this.x += this.vx * timeFactor;
-        this.y += this.vy * timeFactor;
-        this.vy += 0.05 * timeFactor; // Gravedad ajustada
-        this.lifetime -= deltaTime / 1000;
-        this.size = Math.max(0, this.size * (0.98 ** timeFactor));
-    }
-
-    draw(ctx) {
-        const alpha = this.lifetime / this.maxLifetime;
-        ctx.fillStyle = `${this.color.replace(')', `, ${alpha})`).replace('rgb', 'rgba')}`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
 
 // Exportar configuración
-const gameConfig = {
+export const gameConfig = {
     ...baseConfig,
-    levels: generateLevels(50, baseConfig.difficulty),
+    levels: generateLevels(100, baseConfig.difficulty),
     difficultySettings: difficultySettings
 };

@@ -1,799 +1,7 @@
-class Player {
-    constructor(game, x, y) {
-        this.game = game;
-        this.x = x;
-        this.y = y;
-        this.width = 40;
-        this.height = 60;
-        this.speed = 0;
-        this.maxSpeed = 5;
-        this.maxHealth = 100;
-        this.health = this.maxHealth;
-        this.shieldActive = false;
-        this.shieldElement = null;
-        this.lastFire = 0;
-        this.thrusting = false;
-        this.invincible = false;
-        this.invincibleTime = 0;
-        this.firePower = 1;
-        this.fireRate = 200;
-        this.powerUpTimer = null;
-        
-        
-        
-        this.createElement();
-        this.createHealthBar(); // Nueva función
-    }
-    createHealthBar() {
-        this.healthBar = document.createElement('div');
-        this.healthBar.className = 'player-health absolute top-0 left-0 w-full h-1 bg-blue-500';
-        this.element.appendChild(this.healthBar);
-        this.updateHealthBar();
-    }
-    updateHealthBar() {
-        const healthPercent = (this.health / this.maxHealth) * 100;
-        this.healthBar.style.width = `${healthPercent}%`;
-        this.healthBar.style.backgroundColor = 
-            healthPercent > 50 ? '#3b82f6' : 
-            healthPercent > 25 ? '#f59e0b' : '#ef4444';
-    }
-
-    createElement() {
-        this.element = document.createElement('div');
-        this.element.className = 'ship absolute w-10 h-16 flex items-center justify-center text-3xl';
-        this.element.innerHTML = '<i class="fas fa-rocket text-blue-500"></i>';
-        document.body.appendChild(this.element);
-    }
-
-    update(deltaTime) {
-        const moveX = (this.game.keys['ArrowRight'] || this.game.keys['d']) ? 1 : 
-                     (this.game.keys['ArrowLeft'] || this.game.keys['a']) ? -1 : 0;
-        const moveY = (this.game.keys['ArrowDown'] || this.game.keys['s']) ? 1 : 
-                     (this.game.keys['ArrowUp'] || this.game.keys['w']) ? -1 : 0;
-
-        this.x += moveX * this.maxSpeed;
-        this.y += moveY * this.maxSpeed;
-
-        this.x = Math.max(0, Math.min(this.game.gameWidth, this.x));
-        this.y = Math.max(0, Math.min(this.game.gameHeight, this.y));
-
-        this.element.style.left = `${this.x - 20}px`;
-        this.element.style.top = `${this.y - 30}px`;
-
-        if (Date.now() - this.lastFire > this.fireRate) {
-            this.fire();
-            this.lastFire = Date.now();
-        }
-
-        if (this.invincible) {
-            this.invincibleTime -= deltaTime;
-            this.element.classList.add('invincible');
-            if (this.invincibleTime <= 0) {
-                this.invincible = false;
-                this.element.classList.remove('invincible');
-            }
-        }
-        if (this.shieldElement) {
-            this.shieldElement.style.left = `${this.x - 30}px`;
-            this.shieldElement.style.top = `${this.y - 30}px`;
-        }
-    }
-
-    fire() {
-        this.game.playSound('shoot');
-        for (let i = 0; i < this.firePower; i++) {
-            const offset = (i - (this.firePower - 1) / 2) * 15;
-            const bulletX = this.x + offset;
-            const bulletY = this.y - this.height/2;
-            this.game.bullets.push(new Bullet(this.game, bulletX, bulletY, -Math.PI/2));
-        }
-        this.createThrustParticles();
-    }
-
-    createThrustParticles() {
-        for (let i = 0; i < 5; i++) {
-            const angle = Math.PI + (Math.random() * 0.4 - 0.2);
-            const speed = Math.random() * 2 + 1;
-            this.game.particles.push(new Particle(
-                this.x,
-                this.y + this.height/2,
-                Math.cos(angle) * speed,
-                Math.sin(angle) * speed,
-                '#3b82f6',
-                1,
-                0.5
-            ));
-        }
-    }
-
-    takeDamage(damage = 25) {
-        if (this.invincible || this.shieldActive) return;
-    
-        // Reiniciar combo al recibir daño
-        this.game.resetCombo();
-        
-        // Resto de la lógica de daño...
-        this.health = Math.max(0, this.health - damage);
-        this.updateHealthBar();
-        
-        if (this.health <= 0) {
-            this.game.lives--;
-            this.game.updateLives();
-            this.createExplosion();
-            
-            if (this.game.lives <= 0) {
-                this.game.gameOver();
-            } else {
-                this.respawn();
-            }
-        }
-    }
-
-    createExplosion() {
-        const explosion = document.createElement('div');
-        explosion.className = 'explosion';
-        explosion.style.left = `${this.x - 30}px`;
-        explosion.style.top = `${this.y - 30}px`;
-        explosion.style.width = '60px';
-        explosion.style.height = '60px';
-        explosion.style.backgroundColor = '#3b82f6';
-        document.body.appendChild(explosion);
-        
-        setTimeout(() => {
-            if (explosion.parentNode) {
-                document.body.removeChild(explosion);
-            }
-        }, 500);
-        
-        for (let i = 0; i < 30; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * 5 + 2;
-            this.game.particles.push(new Particle(
-                this.x, this.y,
-                Math.cos(angle) * speed,
-                Math.sin(angle) * speed,
-                '#3b82f6',
-                Math.random() * 3 + 1,
-                Math.random() * 0.5 + 0.5
-            ));
-        }
-    }
-
-    respawn() {
-        this.invincible = true;
-        this.invincibleTime = 2000;
-        this.x = this.game.gameWidth / 2;
-        this.y = this.game.gameHeight - 100;
-    }
-
-    applyPowerUp(type, duration) {
-        if (this.powerUpTimer) {
-            clearTimeout(this.powerUpTimer);
-        }
-    
-        this.showPowerUpNotification(type);
-        this.game.playSound('powerup');
-    
-        switch(type) {
-            case 'fireRate':
-                this.fireRate = 100;
-                break;
-            case 'shield':
-                this.activateShield(duration);
-                break;
-            case 'firePower':
-                this.firePower = 3;
-                break;
-            case 'life':
-                this.game.lives = Math.min(5, this.game.lives + 1);
-                this.game.updateLives();
-                return; // No necesitamos timer para vida
-        }
-    
-        if (type !== 'life') {
-            this.powerUpTimer = setTimeout(() => {
-                this.resetPowerUp(type);
-            }, duration);
-        }
-    }
-    
-    resetPowerUp(type) {
-        switch(type) {
-            case 'fireRate':
-                this.fireRate = 200;
-                break;
-            case 'shield':
-                this.shieldActive = false;
-                if (this.shieldElement && this.shieldElement.parentNode) {
-                    this.shieldElement.remove();
-                }
-                break;
-            case 'firePower':
-                this.firePower = 1;
-                break;
-        }
-    }
-    activateShield(duration) {
-        // Limpiar escudo existente primero
-        if (this.shieldElement && this.shieldElement.parentNode) {
-            this.shieldElement.remove();
-        }
-        
-        this.shieldActive = true;
-        this.createShieldElement();
-        
-        // Limpiar timer existente
-        if (this.shieldTimer) {
-            clearTimeout(this.shieldTimer);
-        }
-        
-        this.shieldTimer = setTimeout(() => {
-            this.shieldActive = false;
-            if (this.shieldElement && this.shieldElement.parentNode) {
-                this.shieldElement.remove();
-            }
-        }, duration);
-    }
-
-    createShieldElement() {
-        this.shieldElement = document.createElement('div');
-        this.shieldElement.className = 'shield-effect absolute rounded-full border-2 border-blue-400';
-        this.shieldElement.style.width = '60px';
-        this.shieldElement.style.height = '60px';
-        this.shieldElement.style.left = `${this.x - 30}px`;
-        this.shieldElement.style.top = `${this.y - 30}px`;
-        this.shieldElement.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.7)';
-        document.body.appendChild(this.shieldElement);
-    }
-    showPowerUpNotification(type) {
-        const effect = document.createElement('div');
-        effect.className = 'powerup-notification absolute flex items-center justify-center text-2xl text-white font-bold';
-        effect.style.left = `${this.x - 30}px`;
-        effect.style.top = `${this.y - 50}px`;
-        
-        const colors = {
-            'fireRate': 'text-yellow-400',
-            'firePower': 'text-orange-500',
-            'shield': 'text-blue-400',
-            'life': 'text-red-400'
-        };
-        
-        effect.className += ` ${colors[type]}`;
-        
-        const texts = {
-            'fireRate': 'RÁPIDO DISPARO!',
-            'firePower': 'PODER EXTRA!',
-            'shield': 'ESCUDO ACTIVO!',
-            'life': 'VIDA EXTRA!'
-        };
-        
-        effect.textContent = texts[type];
-        document.body.appendChild(effect);
-        
-        // Animación
-        let pos = -50;
-        const anim = setInterval(() => {
-            pos -= 1;
-            effect.style.top = `${this.y + pos}px`;
-            effect.style.opacity = (100 - pos) / 100;
-            
-            if (pos < -100) {
-                clearInterval(anim);
-                if (effect.parentNode) {
-                    document.body.removeChild(effect);
-                }
-            }
-        }, 20);
-    }
-
-    destroy() {
-        if (this.element && this.element.parentNode) {
-            document.body.removeChild(this.element);
-        }
-    }
-}
-
-class Bullet {
-    constructor(game, x, y, angle, isEnemy = false) {
-        this.game = game;
-        this.x = x;
-        this.y = y;
-        this.angle = angle;
-        this.speed = isEnemy ? 7 : 10;
-        this.lifetime = 5000;
-        this.born = Date.now();
-        this.size = isEnemy ? 8 : 5; // Tamaño más grande para balas enemigas
-        this.isEnemy = isEnemy;
-        this.damage = isEnemy ? 25 : 1;
-        this.glowIntensity = isEnemy ? 0.8 : 0; // Efecto de brillo para enemigos
-    }
-
-    update() {
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
-    
-        const margin = 50;
-        if (Date.now() - this.born > this.lifetime || 
-            this.x < -margin || this.x > this.game.gameWidth + margin || 
-            this.y < -margin || this.y > this.game.gameHeight + margin) {
-            this.lifetime = 0;
-        }
-    }
-
-    draw(ctx) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-
-        if (this.isEnemy) {
-            // Efecto de brillo para balas enemigas
-            if (this.glowIntensity > 0) {
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ff0000';
-            }
-            
-            // Cuerpo de la bala más grande y visible
-            ctx.fillStyle = '#ef4444';
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(30, 0); // Más larga que antes (era 20)
-            ctx.lineWidth = this.size * 1.5; // Más gruesa
-            ctx.stroke();
-            
-            // Punta de la bala más grande
-            ctx.fillStyle = '#ff0000';
-            ctx.beginPath();
-            ctx.arc(30, 0, this.size, 0, Math.PI * 2); // Radio más grande (era size/2)
-            ctx.fill();
-            
-            // Efecto de núcleo brillante
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(30, 0, this.size/2, 0, Math.PI * 2);
-            ctx.fill();
-        } else {
-            // Balas del jugador (sin cambios o ajustes menores)
-            ctx.fillStyle = '#f59e0b';
-            ctx.fillRect(0, -this.size/2, 15, this.size);
-        }
-
-        ctx.restore();
-    }
-}
-class Enemy {
-    constructor(game, x, y, health = 1, speed = 1.5, fireRate = 1000) {
-        // Validar y aplicar modificadores de dificultad
-        const difficulty = game.difficulty || 'medium';
-        const diff = game.config.difficultySettings[difficulty] || game.config.difficultySettings.medium;
-        
-        // Aplicar modificadores con redondeo
-        this.health = Math.round(health * diff.multipliers.health * 10) / 10; // 1 decimal
-        this.speed = Math.round(speed * diff.multipliers.speed * 100) / 100; // 2 decimales
-        this.fireRate = Math.round(fireRate * diff.multipliers.fireRate);
-        
-        // Valores mínimos/máximos de seguridad
-        this.health = Math.max(1, this.health);
-        this.speed = Math.min(6, Math.max(0.5, this.speed));
-        this.fireRate = Math.max(300, this.fireRate);
-
-        this.game = game;
-        this.x = x;
-        this.y = y;
-        this.size = 30;
-        this.maxHealth = this.health; // Usar el valor ya modificado
-        this.lastFire = 0;
-        this.color = `hsl(${Math.random() * 60 + 330}, 100%, 50%)`;
-        this.isKamikaze = Math.random() < 0.1;
-        
-        this.createElement();
-    }
-
-    createElement() {
-        this.element = document.createElement('div');
-        this.element.className = 'absolute flex items-center justify-center text-red-500';
-        this.element.innerHTML = '<i class="fas fa-space-shuttle"></i>';
-        this.element.style.width = `${this.size}px`;
-        this.element.style.height = `${this.size}px`;
-        this.element.style.fontSize = `${this.size * 0.7}px`;
-        document.body.appendChild(this.element);
-        
-        this.healthBar = document.createElement('div');
-        this.healthBar.className = 'absolute top-0 left-0 w-full h-1 bg-red-500';
-        this.element.appendChild(this.healthBar);
-    }
-
-    update() {
-        if (this.isKamikaze) {
-            const dx = this.game.player.x - this.x;
-            const dy = this.game.player.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            this.x += (dx / dist) * this.speed * 1.5;
-            this.y += (dy / dist) * this.speed * 1.5;
-        } else {
-            this.x += Math.sin(Date.now() / 1000) * 0.5;
-            this.y += this.speed * 0.2;
-            
-            if (Date.now() - this.lastFire > this.fireRate) {
-                this.fire();
-                this.lastFire = Date.now();
-            }
-        }
-
-        this.element.style.left = `${this.x - this.size/2}px`;
-        this.element.style.top = `${this.y - this.size/2}px`;
-        this.element.style.color = this.color;
-        
-        const healthPercent = (this.health / this.maxHealth) * 100;
-        this.healthBar.style.width = `${healthPercent}%`;
-        this.healthBar.style.backgroundColor = healthPercent > 50 ? '#10B981' : 
-                                              healthPercent > 25 ? '#F59E0B' : '#EF4444';
-                                              if (this.y > this.game.gameHeight + this.size) {
-                                                this.y = -this.size;
-                                                this.x = Math.random() * this.game.gameWidth;
-                                            }
-    }
-
-    fire() {
-        this.game.playSound('enemyShoot');
-        const dx = this.game.player.x - this.x;
-        const dy = this.game.player.y - this.y;
-        const angle = Math.atan2(dy, dx);
-        
-        // Balas normales hacen 25 de daño
-        const bullet = new Bullet(this.game, this.x, this.y, angle, true);
-        bullet.damage = 25;
-        this.game.bullets.push(bullet);
-        
-        this.createFireParticles();
-    }
-
-    createFireParticles() {
-        for (let i = 0; i < 5; i++) {
-            const angle = this.isKamikaze ? Math.PI : Math.random() * Math.PI * 2;
-            const speed = Math.random() * 2 + 1;
-            this.game.particles.push(new Particle(
-                this.x - Math.cos(angle) * 20,
-                this.y - Math.sin(angle) * 20,
-                Math.cos(angle) * speed,
-                Math.sin(angle) * speed,
-                '#ef4444',
-                1,
-                0.5
-            ));
-        }
-    }
-
-    takeDamage(damage) {
-        this.health -= damage;
-        
-        if (this.health <= 0) {
-            this.explode();
-            this.destroy();
-            return 200 * this.maxHealth;
-        }
-        return 0;
-    }
-
-    explode() {
-        this.game.playSound('explosion');
-        const explosion = document.createElement('div');
-        explosion.className = 'explosion';
-        explosion.style.left = `${this.x - this.size}px`;
-        explosion.style.top = `${this.y - this.size}px`;
-        explosion.style.width = `${this.size * 2}px`;
-        explosion.style.height = `${this.size * 2}px`;
-        explosion.style.backgroundColor = this.color;
-        document.body.appendChild(explosion);
-        
-        setTimeout(() => {
-            if (explosion.parentNode) {
-                document.body.removeChild(explosion);
-            }
-        }, 500);
-        
-        for (let i = 0; i < 20; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * 3 + 1;
-            this.game.particles.push(new Particle(
-                this.x, this.y,
-                Math.cos(angle) * speed,
-                Math.sin(angle) * speed,
-                this.color,
-                Math.random() * 3 + 1,
-                Math.random() * 0.5 + 0.5
-            ));
-        }
-        
-        if (Math.random() < 0.3) {
-            this.dropPowerUp();
-        }
-    }
-
-    dropPowerUp() {
-        const types = ['fireRate', 'firePower', 'shield', 'life'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        const duration = type === 'life' ? 0 : 10000;
-        
-        this.game.powerups.push(new PowerUp(this.game, this.x, this.y, type, duration));
-    }
-
-    destroy() {
-        if (this.element && this.element.parentNode) {
-            // Eliminar también la barra de salud
-            if (this.healthBar && this.healthBar.parentNode) {
-                this.element.removeChild(this.healthBar);
-            }
-            document.body.removeChild(this.element);
-            this.element = null; // Añadir esto
-            this.healthBar = null; // Añadir esto
-        }
-    }
-}
-
-class PowerUp {
-    constructor(game, x, y, type, duration) {
-        this.game = game;
-        this.x = x;
-        this.y = y;
-        this.size = 20;
-        this.type = type;
-        this.duration = duration;
-        this.speed = 1;
-        this.shouldRemove = false;
-        this.duration = duration;
-        this.timeLeft = duration;
-        this.timerElement = null;
-        
-        this.createElement();
-    }
-
-    createElement() {
-        this.element = document.createElement('div');
-        this.element.className = 'powerup absolute flex items-center justify-center text-white';
-        this.element.style.width = `${this.size}px`;
-        this.element.style.height = `${this.size}px`;
-        
-        let icon, bgColor;
-        switch(this.type) {
-            case 'fireRate':
-                icon = 'fa-bolt';
-                bgColor = 'bg-yellow-500';
-                break;
-            case 'firePower':
-                icon = 'fa-fire';
-                bgColor = 'bg-orange-500';
-                break;
-            case 'shield':
-                icon = 'fa-shield-alt';
-                bgColor = 'bg-blue-500';
-                break;
-            case 'life':
-                icon = 'fa-heart';
-                bgColor = 'bg-red-500';
-                break;
-        }
-        
-        this.element.className += ` ${bgColor}`;
-        this.element.innerHTML = `<i class="fas ${icon}"></i>`;
-        document.body.appendChild(this.element);
-        this.createTimerElement();
-    }
-    
-    createTimerElement() {
-        if (!this.element) return;
-        
-        this.timerElement = document.createElement('div');
-        this.timerElement.className = 'powerup-timer absolute bottom-0 left-0 w-full h-1 bg-white';
-        this.element.appendChild(this.timerElement);
-    }
-
-    update() {
-        this.y += this.speed;
-        
-        this.element.style.left = `${this.x - this.size/2}px`;
-        this.element.style.top = `${this.y - this.size/2}px`;
-        
-        if (this.checkCollisionWithPlayer()) {
-            this.applyEffect();
-            this.shouldRemove = true;
-            this.destroy();
-            return; // Salir del método después de destruir el power-up
-        }
-        
-        if (this.y > this.game.gameHeight + this.size) {
-            this.shouldRemove = true;
-            this.destroy();
-            return; // Salir del método después de destruir el power-up
-        }
-        
-        // Solo actualizar el timer si el elemento existe
-        if (this.timerElement && this.timerElement.parentNode) {
-            this.timeLeft -= 16; // Aprox. 60fps
-            const percent = (this.timeLeft / this.duration) * 100;
-            this.timerElement.style.width = `${percent}%`;
-        }
-    }
-
-    checkCollisionWithPlayer() {
-        const player = this.game.player;
-        const dx = this.x - player.x;
-        const dy = this.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        return distance < (this.size + Math.max(player.width, player.height)) / 2;
-    }
-
-    applyEffect() {
-        this.game.player.applyPowerUp(this.type, this.duration);
-    }
-
-    destroy() {
-        if (this.element && this.element.parentNode) {
-            if (this.timerElement && this.timerElement.parentNode) {
-                this.element.removeChild(this.timerElement);
-            }
-            document.body.removeChild(this.element);
-        }
-        // Limpiar referencias
-        this.element = null;
-        this.timerElement = null;
-        this.shouldRemove = true;
-    }
-}
-class MediumEnemy extends Enemy {
-    constructor(game, x, y) {
-        super(game, x, y, 3, 1.8, 800);
-        this.size = 40;
-        this.element.innerHTML = '<i class="fas fa-space-shuttle fa-lg"></i>';
-        this.element.style.fontSize = `${this.size * 0.7}px`; // Añadir esto
-    }
-}
-
-class CarrierEnemy extends Enemy {
-    constructor(game, x, y) {
-        super(game, x, y, 8, 0.7, 2000);
-        this.size = 60;
-        this.element.innerHTML = '<i class="fas fa-space-station"></i>';
-        this.element.style.fontSize = `${this.size * 0.7}px`; // Añadir esto
-    }
-}
-class BossEnemy extends Enemy {
-    constructor(game, x, y) {
-        super(game, x, y, 15, 0.5, 2000);
-        this.size = 70;
-        this.missileCooldown = 3000;
-        this.lastMissile = 0;
-        this.color = '#ff0000';
-        this.bossHealthBar = null;
-    }
-
-    createElement() {
-        super.createElement();
-        this.element.innerHTML = '<i class="fas fa-space-shuttle fa-2x"></i>';
-        this.element.style.color = this.color;
-        
-        // Crear barra de salud especial para el boss
-        this.bossHealthBar = document.createElement('div');
-        this.bossHealthBar.className = 'boss-health-bar absolute bottom-full left-0 w-full h-3 bg-red-500 mb-1';
-        this.bossHealthBar.style.borderRadius = '3px';
-        this.element.appendChild(this.bossHealthBar);
-        
-        // Barra de fondo
-        const healthBarBg = document.createElement('div');
-        healthBarBg.className = 'absolute bottom-full left-0 w-full h-3 bg-gray-700 mb-1';
-        healthBarBg.style.borderRadius = '3px';
-        healthBarBg.style.zIndex = '-1';
-        this.element.insertBefore(healthBarBg, this.bossHealthBar);
-    }
-
-    update() {
-        super.update();
-        
-        // Actualizar barra de salud del boss
-        if (this.bossHealthBar) {
-            const healthPercent = (this.health / this.maxHealth) * 100;
-            this.bossHealthBar.style.width = `${healthPercent}%`;
-            
-            // Cambiar color según salud
-            if (healthPercent > 60) {
-                this.bossHealthBar.style.backgroundColor = '#10B981'; // Verde
-            } else if (healthPercent > 30) {
-                this.bossHealthBar.style.backgroundColor = '#F59E0B'; // Amarillo
-            } else {
-                this.bossHealthBar.style.backgroundColor = '#EF4444'; // Rojo
-            }
-        }
-        
-        if (Date.now() - this.lastMissile > this.missileCooldown) {
-            this.fireMissile();
-            this.lastMissile = Date.now();
-        }
-    }
-
-    destroy() {
-        if (this.bossHealthBar && this.bossHealthBar.parentNode) {
-            this.bossHealthBar.parentNode.removeChild(this.bossHealthBar);
-        }
-        super.destroy();
-    }
-
-    fireMissile() {
-        const angles = [-0.3, 0, 0.3];
-        angles.forEach(angle => {
-            const missile = new HomingMissile(
-                this.game, 
-                this.x, 
-                this.y, 
-                Math.PI/2 + angle,
-                true
-            );
-            // Añadir misiles al array de misiles especiales
-            this.game.specialBullets.push(missile);
-        });
-    }
-}
-
-class HomingMissile extends Bullet {
-    constructor(game, x, y, angle, isEnemy) {
-        super(game, x, y, angle, isEnemy);
-        this.speed = 5;
-        this.turnSpeed = 0.05;
-        this.size = 12; // Más grande que las balas normales
-        this.damage = 25; // Daño reducido para balancear
-        this.trailParticles = [];
-        this.lastParticle = 0;
-    }
-
-    update() {
-        super.update();
-        
-        // Crear partículas de estela
-        if (Date.now() - this.lastParticle > 50) {
-            this.trailParticles.push(new Particle(
-                this.x, this.y,
-                -Math.cos(this.angle) * 0.5,
-                -Math.sin(this.angle) * 0.5,
-                '#ff5555',
-                3,
-                1
-            ));
-            this.lastParticle = Date.now();
-        }
-        
-        // Actualizar partículas de estela
-        this.trailParticles.forEach(p => p.update(16));
-        this.trailParticles = this.trailParticles.filter(p => p.lifetime > 0);
-    }
-
-    draw(ctx) {
-        // Dibujar estela primero
-        this.trailParticles.forEach(p => p.draw(ctx));
-        
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-        
-        // Cuerpo del misil más detallado
-        ctx.fillStyle = '#ff3333';
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(20, 0);
-        ctx.lineTo(15, -this.size/2);
-        ctx.lineTo(20, 0);
-        ctx.lineTo(15, this.size/2);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Punta del misil
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(20, 0, this.size/2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.restore();
-    }
-}
+import { Player } from "./player.js";
+import { Star,Particle } from "./particles.js";
+import { Enemy,BossEnemy,MediumEnemy,CarrierEnemy } from "./enemy.js";
+import { gameConfig,generateLevels } from "./gameConfig.js";
 
 class Game {
     constructor() {
@@ -814,6 +22,7 @@ class Game {
         this.combo = 0;
         this.comboMultiplier = 1;
         this.comboTimeout = null;
+        this.maxComboMultiplier = 150;
         this.isRunning = false;
         this.isPaused = false;
         this.keys = {};
@@ -826,6 +35,15 @@ class Game {
         this.respawnTimer = null;
         this.invincible = false;
         this.specialBullets = [];
+        this.lastTime = 0;
+        this.fpsLastTime = 0;
+        this.frameCount = 0;
+        this.fps = 0;
+        this.deltaTime = 0;
+        this.updateAccumulator = 0;
+        this.showFPS = false; // Estado inicial
+        this.fpsDisplay = null;
+        this.fpsToggle = null;
 
         this.elements = {
             startScreen: document.getElementById('startScreen'),
@@ -870,7 +88,27 @@ class Game {
             up: false,
             down: false
         };
+        this.initFpsDisplay();
+    }
+    initFpsDisplay() {
+        // Crear elemento de visualización
+        this.fpsDisplay = document.createElement('div');
+        this.fpsDisplay.id = 'fpsDisplay';
+        this.fpsDisplay.textContent = 'FPS: 0';
+        this.fpsDisplay.style.display = 'none';
+        document.body.appendChild(this.fpsDisplay);
+    
+        // Configurar el toggle
+        this.fpsToggle = document.getElementById('fpsToggle');
+        this.fpsToggle.addEventListener('click', () => {
+            this.showFPS = !this.showFPS;
+            this.fpsToggle.classList.toggle('active', this.showFPS);
+            this.fpsToggle.textContent = `FPS: ${this.showFPS ? 'ON' : 'OFF'}`;
+            this.fpsDisplay.style.display = this.showFPS ? 'block' : 'none';
+        });
         
+        // Mostrar elementos cuando empieza el juego
+        this.fpsToggle.classList.remove('hidden');
     }
     checkViewport() {
         const wasMobile = this.isMobile;
@@ -1158,8 +396,13 @@ resizeCanvas() {
         const difficulty = this.difficulty || 'medium';
         const diff = this.config.difficultySettings[difficulty] || this.config.difficultySettings.medium;
         
+        // Ajustes para móvil
+        const spacing = this.isMobile ? 30 : 40;
+        const maxWidth = this.gameWidth * (this.isMobile ? 0.9 : 1);
+        const maxEnemies = this.isMobile ? Math.min(15, levelConfig.enemies) : levelConfig.enemies;
+    
         const createEnemy = (x, y) => {
-            // Aplicar modificadores de dificultad
+            // Aplicar modificadores de dificultad (se mantiene igual)
             const health = Math.round(levelConfig.enemyHealth * diff.multipliers.health * 10) / 10;
             const speed = Math.round(levelConfig.enemySpeed * diff.multipliers.speed * 100) / 100;
             const fireRate = Math.round(levelConfig.enemyFireRate * diff.multipliers.fireRate);
@@ -1177,88 +420,95 @@ resizeCanvas() {
             return enemy;
         };
     
+        // Generación de formaciones (adaptadas para móvil pero completas)
         switch(levelConfig.formation) {
             case 'line':
-                for (let i = 0; i < levelConfig.enemies; i++) {
-                    const x = this.gameWidth / 2 - (levelConfig.enemies * 40) / 2 + i * 40;
-                    const y = 100;
+                const lineCount = Math.min(maxEnemies, Math.floor(maxWidth / spacing));
+                for (let i = 0; i < lineCount; i++) {
+                    const x = this.gameWidth / 2 - (lineCount * spacing) / 2 + i * spacing;
+                    const y = this.isMobile ? 80 : 100;
                     this.enemies.push(createEnemy(x, y));
+                }
+                // Generación por oleadas si no caben todos
+                if (levelConfig.enemies > lineCount) {
+                    this.setupWaveSpawning(levelConfig.enemies - lineCount, lineCount, spacing);
                 }
                 break;
                 
             case 'square':
-                const side = Math.ceil(Math.sqrt(levelConfig.enemies));
-                for (let i = 0; i < levelConfig.enemies; i++) {
+                const side = Math.ceil(Math.sqrt(maxEnemies));
+                for (let i = 0; i < maxEnemies; i++) {
                     const row = Math.floor(i / side);
                     const col = i % side;
-                    const x = this.gameWidth / 2 - (side * 40) / 2 + col * 40;
-                    const y = 50 + row * 40;
+                    const x = this.gameWidth / 2 - (side * spacing) / 2 + col * spacing;
+                    const y = (this.isMobile ? 60 : 80) + row * spacing;
                     this.enemies.push(createEnemy(x, y));
                 }
                 break;
                 
             case 'circle':
-                const radius = Math.min(150, levelConfig.enemies * 15);
-                for (let i = 0; i < levelConfig.enemies; i++) {
-                    const angle = (i / levelConfig.enemies) * Math.PI * 2;
+                const radius = Math.min(this.isMobile ? 100 : 150, maxWidth * 0.4);
+                for (let i = 0; i < maxEnemies; i++) {
+                    const angle = (i / maxEnemies) * Math.PI * 2;
                     const x = this.gameWidth / 2 + Math.cos(angle) * radius;
-                    const y = 150 + Math.sin(angle) * radius;
+                    const y = (this.isMobile ? 100 : 120) + Math.sin(angle) * radius;
                     this.enemies.push(createEnemy(x, y));
                 }
                 break;
                 
             case 'spiral':
-                for (let i = 0; i < levelConfig.enemies; i++) {
+                for (let i = 0; i < maxEnemies; i++) {
                     const angle = (i * 0.4) * Math.PI;
-                    const radius = 50 + i * 10;
+                    const radius = 50 + i * (this.isMobile ? 8 : 12);
                     const x = this.gameWidth / 2 + Math.cos(angle) * radius;
-                    const y = 100 + Math.sin(angle) * radius;
+                    const y = (this.isMobile ? 80 : 100) + Math.sin(angle) * radius;
                     this.enemies.push(createEnemy(x, y));
                 }
                 break;
                 
             case 'phalanx':
-                const rows = Math.ceil(levelConfig.enemies / 5);
-                for (let i = 0; i < levelConfig.enemies; i++) {
+                const phalanxRows = Math.ceil(maxEnemies / 5);
+                for (let i = 0; i < maxEnemies; i++) {
                     const row = Math.floor(i / 5);
                     const col = i % 5;
-                    const x = this.gameWidth / 2 - 100 + col * 50;
-                    const y = 80 + row * 40;
+                    const x = this.gameWidth / 2 - 100 + col * (this.isMobile ? 45 : 50);
+                    const y = (this.isMobile ? 60 : 80) + row * (this.isMobile ? 35 : 40);
                     this.enemies.push(createEnemy(x, y));
                 }
                 break;
                 
             case 'mixed':
-                const half = Math.ceil(levelConfig.enemies / 2);
-                // Primera mitad en línea
+                const half = Math.ceil(maxEnemies / 2);
+                // Línea
                 for (let i = 0; i < half; i++) {
-                    const x = this.gameWidth / 2 - (half * 40) / 2 + i * 40;
-                    const y = 100;
+                    const x = this.gameWidth / 2 - (half * spacing) / 2 + i * spacing;
+                    const y = this.isMobile ? 80 : 100;
                     this.enemies.push(createEnemy(x, y));
                 }
-                // Segunda mitad en círculo
-                for (let i = 0; i < levelConfig.enemies - half; i++) {
-                    const angle = (i / (levelConfig.enemies - half)) * Math.PI * 2;
-                    const x = this.gameWidth / 2 + Math.cos(angle) * 100;
-                    const y = 150 + Math.sin(angle) * 100;
+                // Círculo
+                for (let i = 0; i < maxEnemies - half; i++) {
+                    const angle = (i / (maxEnemies - half)) * Math.PI * 2;
+                    const radius = this.isMobile ? 80 : 100;
+                    const x = this.gameWidth / 2 + Math.cos(angle) * radius;
+                    const y = (this.isMobile ? 120 : 150) + Math.sin(angle) * radius;
                     this.enemies.push(createEnemy(x, y));
                 }
                 break;
         }
     
-        // Añadir jefe si corresponde
+        // Jefe (se mantiene igual)
         if (levelConfig.hasBoss) {
             const bossX = this.gameWidth / 2;
-            const bossY = 150;
+            const bossY = this.isMobile ? 120 : 150;
             const boss = new BossEnemy(this, bossX, bossY);
             boss.health = levelConfig.enemyHealth * 3;
             boss.maxHealth = boss.health;
-            boss.size = 70; // Tamaño más grande
-            boss.element.style.fontSize = '50px'; // Ajustar icono
+            boss.size = this.isMobile ? 50 : 70;
+            boss.element.style.fontSize = this.isMobile ? '40px' : '50px';
             this.enemies.push(boss);
         }
     
-        // Configurar enemigos con misiles
+        // Configurar enemigos con misiles (se mantiene igual)
         if (levelConfig.hasMissileEnemies) {
             const missileEnemiesCount = Math.min(3 + Math.floor(this.level / 5), this.enemies.length);
             for (let i = 0; i < missileEnemiesCount; i++) {
@@ -1269,7 +519,7 @@ resizeCanvas() {
             }
         }
     
-        // Configurar enemigos kamikaze en niveles altos
+        // Configurar enemigos kamikaze (se mantiene igual)
         if (this.level > 8) {
             const kamikazeCount = Math.min(2 + Math.floor(this.level / 10), this.enemies.length);
             for (let i = 0; i < kamikazeCount; i++) {
@@ -1278,6 +528,24 @@ resizeCanvas() {
                 this.enemies[i].element.style.color = '#ff0000';
             }
         }
+    }
+    
+    // Nuevo método helper para generación por oleadas
+    setupWaveSpawning(count, perWave, spacing) {
+        this.delayedEnemies = count;
+        this.delayedEnemyTimer = setInterval(() => {
+            if (this.delayedEnemies > 0) {
+                const enemiesToSpawn = Math.min(perWave, this.delayedEnemies);
+                for (let i = 0; i < enemiesToSpawn; i++) {
+                    const x = this.gameWidth / 2 - (perWave * spacing) / 2 + i * spacing;
+                    const y = 50;
+                    this.enemies.push(createEnemy(x, y));
+                }
+                this.delayedEnemies -= enemiesToSpawn;
+            } else {
+                clearInterval(this.delayedEnemyTimer);
+            }
+        }, 3000); // Cada 3 segundos
     }
 
     nextLevel() {
@@ -1372,169 +640,242 @@ resizeCanvas() {
             this.updateHighScoresDisplay();
         }
     }
-
     levelComplete() {
         this.isRunning = false;
         this.elements.levelScore.textContent = this.score;
         
-        const nextLevel = this.config.levels.find(l => l.number === this.level + 1) || 
-                         { 
-                           number: this.level + 1, 
-                           enemies: Math.floor(5 + (this.level + 1) * 1.2),
-                           enemyHealth: Math.min(15, 1 + Math.floor((this.level + 1) / 3))
-                         };
-        
-        const difficulty = this.difficulty || 'medium';
-        const diff = this.config.difficultySettings[difficulty] || this.config.difficultySettings.medium;
-        
-        // Calcular valores reales con dificultad
-        const enemyCount = Math.floor(nextLevel.enemies * diff.enemyCount);
-        const enemyHealth = Math.round(nextLevel.enemyHealth * diff.multipliers.health * 10) / 10;
-        
-        // Calcular resistencia en balas necesarias (basado en daño de bala del jugador)
-        const playerBulletDamage = 1; // Daño base de las balas del jugador
-        const bulletsNeeded = Math.ceil(enemyHealth / playerBulletDamage);
-        
-        this.elements.nextLevelInfo.innerHTML = `
-            <div class="mb-3">
-                <h4 class="font-bold text-lg mb-1">Próximo Nivel ${nextLevel.number}:</h4>
-                <p class="text-sm">${nextLevel.description || 'Nivel generado dinámicamente'}</p>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-gray-800 p-2 rounded">
-                    <div class="flex items-center">
-                        <i class="fas fa-space-shuttle text-red-400 mr-2"></i>
-                        <span>Enemigos:</span>
+        const nextLevel = this.config.levels.find(l => l.number === this.level + 1) || { 
+            number: this.level + 1, 
+            enemies: Math.floor(5 + (this.level + 1) * 1.2),
+            enemyHealth: Math.min(15, 1 + Math.floor((this.level + 1) / 3)),
+            hasBoss: (this.level + 1) % 5 === 0 && (this.level + 1) > 10,
+            description: 'Nivel generado dinámicamente'
+        };
+    
+        // Mensaje especial para nivel 100 (victoria final)
+        if (this.level === 100) {
+            this.elements.nextLevelInfo.innerHTML = `
+                <div class="text-center p-4">
+                    <h3 class="text-2xl font-bold text-yellow-400 mb-2">¡FELICIDADES!</h3>
+                    <p class="mb-4">Has completado todos los niveles</p>
+                    <div class="bg-yellow-900 bg-opacity-30 p-3 rounded-lg mb-4">
+                        <i class="fas fa-trophy text-4xl text-yellow-400 mb-2"></i>
+                        <p class="text-sm">Eres un verdadero maestro del espacio</p>
                     </div>
-                    <div class="text-center text-xl font-bold mt-1">${enemyCount}</div>
+                    <div class="stats-grid grid grid-cols-2 gap-2">
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                            <i class="fas fa-star text-yellow-400 block mb-1"></i>
+                            <span class="text-sm">Puntuación: ${this.score}</span>
+                        </div>
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                            <i class="fas fa-medal text-blue-400 block mb-1"></i>
+                            <span class="text-sm">Nivel máximo: 100</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.elements.nextLevelButton.textContent = 'Volver al Menú';
+            this.elements.nextLevelButton.onclick = () => this.showMainMenu();
+            this.elements.levelCompleteScreen.classList.remove('hidden');
+            this.elements.pauseButton.classList.add('hidden');
+            return; // Salir temprano para el nivel 100
+        }
+    
+        // Versión simplificada para móviles
+        if (this.isMobile) {
+            this.elements.nextLevelInfo.innerHTML = `
+                <div class="mobile-level-info">
+                    <h4 class="text-lg font-bold mb-2">Nivel ${nextLevel.number}</h4>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                            <i class="fas fa-space-shuttle text-red-400 block mb-1"></i>
+                            <span class="text-sm">${nextLevel.enemies} enemigos</span>
+                        </div>
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                            <i class="fas fa-shield-alt text-blue-400 block mb-1"></i>
+                            <span class="text-sm">${Math.ceil(nextLevel.enemyHealth * 1.5)} balas</span>
+                        </div>
+                    </div>
+                    ${nextLevel.hasBoss ? `
+                    <div class="bg-red-900 bg-opacity-30 p-2 rounded text-center text-sm">
+                        <i class="fas fa-skull mr-1"></i> ¡Viene un BOSS!
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            // Versión completa para desktop
+            const difficulty = this.difficulty || 'medium';
+            const diff = this.config.difficultySettings[difficulty] || this.config.difficultySettings.medium;
+            
+            const enemyCount = Math.floor(nextLevel.enemies * diff.enemyCount);
+            const enemyHealth = Math.round(nextLevel.enemyHealth * diff.multipliers.health * 10) / 10;
+            const bulletsNeeded = Math.ceil(enemyHealth / 1);
+    
+            this.elements.nextLevelInfo.innerHTML = `
+                <div class="mb-3">
+                    <h4 class="font-bold text-lg mb-1">Próximo Nivel ${nextLevel.number}:</h4>
+                    <p class="text-sm">${nextLevel.description}</p>
                 </div>
                 
-                <div class="bg-gray-800 p-2 rounded">
-                    <div class="flex items-center">
-                        <i class="fas fa-shield-alt text-blue-400 mr-2"></i>
-                        <span>Resistencia:</span>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-gray-800 p-2 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-space-shuttle text-red-400 mr-2"></i>
+                            <span>Enemigos:</span>
+                        </div>
+                        <div class="text-center text-xl font-bold mt-1">${enemyCount}</div>
                     </div>
-                    <div class="text-center text-xl font-bold mt-1">
-                        ${bulletsNeeded} <span class="text-sm">balas</span>
-                    </div>
-                    <div class="text-xs text-center mt-1 text-gray-400">
-                        (${enemyHealth.toFixed(1)} pts salud)
+                    
+                    <div class="bg-gray-800 p-2 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-shield-alt text-blue-400 mr-2"></i>
+                            <span>Resistencia:</span>
+                        </div>
+                        <div class="text-center text-xl font-bold mt-1">
+                            ${bulletsNeeded} <span class="text-sm">balas</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="mt-4 bg-gray-800 p-3 rounded">
-                <h4 class="font-bold mb-2">Resistencias Especiales:</h4>
-                <div class="text-sm">
-                    <div class="flex justify-between items-center py-1">
-                        <span class="flex items-center">
-                            <i class="fas fa-space-shuttle text-red-400 mr-2"></i> Naves normales:
-                        </span>
-                        <span class="font-bold">${bulletsNeeded} balas</span>
-                    </div>
-                    ${nextLevel.hasElite ? `
-                    <div class="flex justify-between items-center py-1">
-                        <span class="flex items-center">
-                            <i class="fas fa-star text-yellow-400 mr-2"></i> Naves élite:
-                        </span>
-                        <span class="font-bold">${Math.ceil(bulletsNeeded * 1.5)} balas</span>
-                    </div>
-                    ` : ''}
-                    ${nextLevel.hasBoss ? `
-                    <div class="flex justify-between items-center py-1">
-                        <span class="flex items-center">
-                            <i class="fas fa-skull text-red-500 mr-2"></i> Boss:
-                        </span>
-                        <span class="font-bold">${Math.ceil(bulletsNeeded * 3)} balas</span>
-                    </div>
-                    ` : ''}
+                
+                ${nextLevel.hasBoss ? `
+                <div class="mt-3 bg-red-900 bg-opacity-30 p-2 rounded border border-red-600">
+                    <i class="fas fa-skull mr-2"></i> ¡Cuidado! El próximo nivel incluye un BOSS
                 </div>
-            </div>
-            
-            <div class="mt-4 bg-gray-800 p-3 rounded">
-                <h4 class="font-bold mb-2">Tu Combo Actual:</h4>
-                <div class="flex justify-between items-center">
-                    <span>Naves seguidas:</span>
-                    <span class="font-bold">${this.combo}</span>
-                </div>
-                <div class="flex justify-between items-center mt-1">
-                    <span>Multiplicador:</span>
-                    <span class="font-bold text-yellow-400">x${this.comboMultiplier}</span>
-                </div>
-                <div class="mt-2 text-xs text-gray-400">
-                    Destruye naves consecutivamente sin recibir daño para mantener tu combo
-                </div>
-            </div>
-            
-            ${nextLevel.hasBoss ? `
-            <div class="mt-3 bg-red-900 bg-opacity-30 p-2 rounded border border-red-600">
-                <i class="fas fa-skull mr-2"></i> ¡Cuidado! El próximo nivel incluye un BOSS
-            </div>
-            ` : ''}
-        `;
-        
-        
-        
+                ` : ''}
+            `;
+        }
+    
         this.elements.levelCompleteScreen.classList.remove('hidden');
         this.elements.pauseButton.classList.add('hidden');
     }
     updateLives() {
         this.elements.lives.textContent = this.lives;
     }
-
     addScore(points) {
+        // Reiniciar el timeout del combo
         if (this.comboTimeout) {
             clearTimeout(this.comboTimeout);
         }
-        
-        // Incrementar combo con cada nave destruida
+    
+        // Aumentar el combo y el multiplicador (linealmente)
         this.combo++;
+        this.comboMultiplier = Math.min(this.maxComboMultiplier, 1 + Math.floor(this.combo / 1)); // x1 por nave
         
-        // Actualizar multiplicador basado en kills consecutivos
-        // Cada 3 naves aumenta el multiplicador (hasta máximo 5x)
-        this.comboMultiplier = Math.min(5, Math.floor(this.combo / 3) + 1);
-        
-        // Calcular puntos con el multiplicador
+        // Calcular puntos ganados
         const earnedPoints = Math.floor(points * this.comboMultiplier);
         this.score += earnedPoints;
         this.elements.score.textContent = this.score;
         
-        // Mostrar feedback visual del combo
+        // Mostrar feedback visual
         this.showComboFeedback(earnedPoints);
         
-        // Resetear combo después de 3 segundos sin kills
+        // Reiniciar el combo después de 5 segundos sin destruir naves
         this.comboTimeout = setTimeout(() => {
             this.resetCombo();
-        }, 3000);
+        }, 5000); // 5 segundos
     }
     
+    // Simplificar el feedback visual
     showComboFeedback(pointsEarned) {
-        // Actualizar display del multiplicador
         this.elements.combo.textContent = `x${this.comboMultiplier}`;
+        this.elements.combo.classList.add('combo-animation');
         
-        // Mostrar animación solo si tenemos multiplicador > 1
-        if (this.comboMultiplier > 1) {
-            this.elements.combo.classList.add('combo-animation');
-            
-            // Crear efecto flotante de combo con los puntos ganados
-            const comboText = document.createElement('div');
-            comboText.className = 'combo-feedback absolute text-yellow-400 font-bold text-xl pointer-events-none';
-            comboText.textContent = `+${pointsEarned} (x${this.comboMultiplier})`;
-            comboText.style.left = `${this.player.x}px`;
-            comboText.style.top = `${this.player.y - 50}px`;
-            document.body.appendChild(comboText);
-            
-            // Eliminar después de la animación
-            setTimeout(() => {
-                if (comboText.parentNode) {
-                    document.body.removeChild(comboText);
-                }
-            }, 1000);
+        const comboText = document.createElement('div');
+        comboText.className = 'combo-feedback absolute font-bold pointer-events-none';
+        comboText.style.left = `${this.player.x}px`;
+        comboText.style.top = `${this.player.y - 50}px`;
+    
+       // Sistema de categorías de combo
+if (this.comboMultiplier >= 100) {
+    // COMBO MODO DIOS (100+)
+    comboText.style.color = '#ffffff';
+    comboText.style.fontSize = '20px';
+    comboText.classList.add('god-mode');
+    comboText.textContent = `MODO DIOS! x${this.comboMultiplier}`;
+    this.playSound('godMode');
+} else if (this.comboMultiplier >= 80) {
+    // COMBO TITÁN (80-99)
+    comboText.style.color = '#ff8c00';  // Naranja más oscuro
+    comboText.style.fontSize = '15px';
+    comboText.textContent = `FUERZA TITÁN! x${this.comboMultiplier}`;
+} else if (this.comboMultiplier >= 60) {
+    // COMBO LEGENDARIO (60-79)
+    comboText.style.color = '#00bfff';  // Azul más brillante
+    comboText.style.fontSize = '15px';
+    comboText.textContent = `LEYENDA VIVIENTE! x${this.comboMultiplier}`;
+} else if (this.comboMultiplier >= 40) {
+    // COMBO ÉPICO (40-59)
+    comboText.style.color = '#ff00ff';  // Magenta brillante
+    comboText.style.fontSize = '15px';
+    comboText.textContent = `PODER ÉPICO! x${this.comboMultiplier}`;
+} else if (this.comboMultiplier >= 20) {
+    // COMBO IMPRESIONANTE (20-39)
+    comboText.style.color = '#00ffff';  // Cian brillante
+    comboText.style.fontSize = '12px';
+    comboText.textContent = `RACHA IMPRESIONANTE! x${this.comboMultiplier}`;
+} else {
+    // COMBO BÁSICO (1-19)
+    comboText.style.color = '#ffff00';  // Amarillo
+    comboText.style.fontSize = '15px';
+    comboText.style.textShadow = '0 0 5px #000000';  // Sombra negra para mejor contraste
+    comboText.textContent = `Combo x${this.comboMultiplier} +${pointsEarned}`;
+}
+
+// Efecto especial para combos altos
+if (this.comboMultiplier >= 20) {
+    comboText.classList.add('high-combo');
+    this.createComboParticles(this.comboMultiplier);
+}
+    
+        document.body.appendChild(comboText);
+        setTimeout(() => comboText.remove(), 1000);
+    }
+    
+    createComboParticles(multiplier) {
+        const particleCount = Math.min(100, multiplier * 3);
+        let particleColor;
+        
+        if (multiplier >= 100) {
+            particleColor = '#ff0000';  // Rojo para modo dios
+        } else if (multiplier >= 80) {
+            particleColor = '#ff8c00';  // Naranja
+        } else if (multiplier >= 60) {
+            particleColor = '#00bfff';  // Azul
+        } else if (multiplier >= 40) {
+            particleColor = '#ff00ff';  // Magenta
+        } else if (multiplier >= 20) {
+            particleColor = '#00ffff';  // Cian
+        } else {
+            particleColor = '#ffff00';  // Amarillo
+        }
+    
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 5 + multiplier * 0.15;
+            this.particles.push(new Particle(
+                this.player.x,
+                this.player.y,
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                particleColor,
+                Math.random() * 5 + 3,  // Tamaño mayor
+                2.0  // Vida más larga
+            ));
         }
     }
     
     resetCombo() {
+        if (this.combo > 0) {
+            const comboEnd = document.createElement('div');
+            comboEnd.className = 'combo-end absolute text-red-500 font-bold text-lg pointer-events-none';
+            comboEnd.textContent = `COMBO PERDIDO (${this.combo} naves)`;
+            comboEnd.style.left = `${this.player?.x || this.gameWidth/2}px`;
+            comboEnd.style.top = `${this.player?.y || this.gameHeight/2}px`;
+            document.body.appendChild(comboEnd);
+            setTimeout(() => comboEnd.remove(), 1500);
+        }
+        
         this.combo = 0;
         this.comboMultiplier = 1;
         this.elements.combo.textContent = `x${this.comboMultiplier}`;
@@ -1580,20 +921,82 @@ checkCollision(obj1, obj2) {
         }
     }
     gameLoop(timestamp) {
-        if (!this.lastTime) this.lastTime = timestamp;
+        // Inicialización de tiempos en el primer frame
+        if (!this.lastTime) {
+            this.lastTime = timestamp;
+            this.fpsLastTime = timestamp;
+            this.frameCount = 0;
+            requestAnimationFrame((t) => this.gameLoop(t));
+            return;
+        }
+    
+        // Cálculo del tiempo transcurrido
         this.deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
-        
+    
+        // 1. Cálculo de FPS (siempre se calcula, aunque no se muestre)
+        this.frameCount++;
+        if (timestamp - this.fpsLastTime >= 1000) {
+            this.fps = this.frameCount;
+            this.frameCount = 0;
+            this.fpsLastTime = timestamp;
+            
+            // Actualizar display de FPS si está activo
+            if (this.showFPS && this.fpsDisplay) {
+                this.fpsDisplay.textContent = `FPS: ${this.fps} | Objs: ${this.enemies.length + this.bullets.length + this.particles.length}`;
+                
+                // Cambiar color según rendimiento
+                if (this.fps < 30) {
+                    this.fpsDisplay.style.color = 'red';
+                } else if (this.fps < 50) {
+                    this.fpsDisplay.style.color = 'yellow';
+                } else {
+                    this.fpsDisplay.style.color = 'limegreen';
+                }
+            }
+           
+        }
+    
+        // 2. Lógica de juego estable a 60 FPS
         if (!this.isPaused && this.isRunning) {
-            this.update(this.deltaTime);
+            this.updateAccumulator += this.deltaTime;
+            const fixedDelta = 1000 / 60; // 16.67ms para 60 FPS
+            
+            // Ejecutar updates necesarios para ponerse al día
+            while (this.updateAccumulator >= fixedDelta) {
+                this.update(fixedDelta);
+                this.updateAccumulator -= fixedDelta;
+                
+                // Prevenir spiral of death
+                if (this.updateAccumulator > 1000) {
+                    console.warn("Catch-up limitado para evitar sobrecarga");
+                    this.updateAccumulator = 0;
+                    break;
+                }
+            }
         } else {
-            // Pausar partículas
+            // Pausa: solo avanzar el tiempo de partículas
             this.particles.forEach(p => p.lifetime += this.deltaTime/1000);
         }
-        this.particles = this.particles.filter(p => p.lifetime > 0);
+    
+        // 3. Renderizado fluido a máxima tasa de refresco
         this.render();
-        this.updateUI(); // Añadir esta línea
-        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
+        this.updateUI();
+    
+        // 4. Gestión inteligente del próximo frame
+        const targetFPS = 120; // Máximo deseado (ajustable)
+        const minFrameTime = 1000 / targetFPS;
+        
+        // Limitar FPS en dispositivos muy potentes para ahorrar energía
+        if (this.deltaTime < minFrameTime) {
+            const waitTime = minFrameTime - this.deltaTime;
+            setTimeout(() => {
+                requestAnimationFrame((t) => this.gameLoop(t));
+            }, waitTime);
+        } else {
+            // Solicitar inmediatamente si estamos por debajo del target
+            requestAnimationFrame((t) => this.gameLoop(t));
+        }
     }
 
     update(deltaTime) {

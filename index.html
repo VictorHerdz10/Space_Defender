@@ -109,9 +109,14 @@
             <div id="powerupTimers" class="mt-2 flex space-x-2"></div>
         </div>
         
-        <button id="pauseButton" class="bg-gray-800 bg-opacity-70 p-3 rounded-full pointer-events-auto hidden">
-            <i class="fas fa-pause text-white"></i>
-        </button>
+        <div class="flex gap-2">
+            <button id="fpsToggle" class="bg-gray-800 bg-opacity-70 p-3 rounded-full pointer-events-auto hidden text-xs">
+                FPS: OFF
+            </button>
+            <button id="pauseButton" class="bg-gray-800 bg-opacity-70 p-3 rounded-full pointer-events-auto hidden">
+                <i class="fas fa-pause text-white"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Pantalla de pausa -->
@@ -170,7 +175,18 @@
         </div>
     </div>
 
-    <script src="js/gameConfig.js"></script>
-    <script src="js/game.js"></script>
+<script type="module" src="js/gameConfig.js"></script>
+
+<!-- Clases base -->
+<script type="module" src="js/particles.js"></script>
+<script type="module" src="js/bullet.js"></script>
+<script type="module" src="js/powerup.js"></script>
+
+<!-- Clases de entidades -->
+<script type="module" src="js/enemy.js"></script>
+<script type="module" src="js/player.js"></script>
+
+<!-- Finalmente el juego -->
+<script type="module" src="js/game.js"></script>
 </body>
 </html>

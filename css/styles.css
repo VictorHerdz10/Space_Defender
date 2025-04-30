@@ -1,256 +1,290 @@
+/* Animaciones clave */
 @keyframes pulse {
     0%, 100% { opacity: 0.7; }
     50% { opacity: 1; }
-}
-
-@keyframes explosion {
+  }
+  
+  @keyframes explosion {
     0% { transform: scale(0.8); opacity: 1; }
     100% { transform: scale(2); opacity: 0; }
-}
-
-@keyframes floatUp {
-    0% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(-50px); opacity: 0; }
-}
-
-/* Animación de combo */
-.combo-animation {
-    animation: pulse 0.5s infinite, glow 0.5s infinite alternate;
-}
-
-@keyframes glow {
-    from { text-shadow: 0 0 5px #f59e0b; }
-    to { text-shadow: 0 0 15px #f59e0b, 0 0 20px #f59e0b; }
-}
-
-/* Feedback flotante de combo */
-.combo-feedback {
-    animation: floatUp 1s ease-out forwards;
-    text-shadow: 0 0 5px rgba(0,0,0,0.8);
-    z-index: 100;
-    opacity: 0.9;
-}
-
-@keyframes floatUp {
+  }
+  
+  @keyframes floatUp {
     0% { transform: translateY(0); opacity: 1; }
     100% { transform: translateY(-100px); opacity: 0; }
-}
-
-.ship {
+  }
+  
+  @keyframes glow {
+    from { text-shadow: 0 0 5px #f59e0b; }
+    to { text-shadow: 0 0 15px #f59e0b, 0 0 20px #f59e0b; }
+  }
+  
+  @keyframes shield-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+  }
+  
+  @keyframes fadeOut {
+    to { opacity: 0; transform: scale(1.5); }
+  }
+  
+  @keyframes boss-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
+  }
+  
+  /* Estilos base */
+  #gameCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    touch-action: none;
+  }
+  
+  /* Elementos del juego */
+  .ship {
     transition: transform 0.1s ease-out;
-}
-
-.thrusting {
+    width: 40px;
+    height: 60px;
+  }
+  
+  .thrusting {
     transform: scale(1.05);
-}
-
-.invincible {
+  }
+  
+  .invincible {
     animation: pulse 0.5s infinite;
-}
-
-.explosion {
+  }
+  
+  .explosion {
     position: absolute;
     border-radius: 50%;
     animation: explosion 0.5s ease-out forwards;
     pointer-events: none;
-}
-
-.powerup {
+  }
+  
+  .powerup {
     position: absolute;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 10px currentColor;
-}
-
-.powerup-notification {
+  }
+  
+  .powerup-notification {
     animation: floatUp 1s ease-out forwards;
     pointer-events: none;
     text-shadow: 0 0 5px rgba(0,0,0,0.5);
     z-index: 100;
-}
-
-.name-error {
+  }
+  
+  .name-error {
     z-index: 200;
     animation: floatUp 1s ease-out forwards;
-}
-/* Escudo del jugador */
-.shield-effect {
+  }
+  
+  /* Efectos especiales */
+  .shield-effect {
     pointer-events: none;
-    animation: pulse 1.5s infinite;
-    opacity: 0.7;
-}
-
-/* Barra de salud del jugador */
-.player-health {
-    border-radius: 2px;
-    transition: width 0.3s ease, background-color 0.3s ease;
-}
-
-/* Timer de power-ups */
-.powerup-timer {
-    border-radius: 0 0 50% 50%;
-    transition: width 0.1s linear;
-}
-
-/* Animación para el escudo */
-@keyframes shield-pulse {
-    0%, 100% { transform: scale(1); opacity: 0.7; }
-    50% { transform: scale(1.05); opacity: 0.9; }
-}
-
-.shield-effect {
     animation: shield-pulse 2s infinite;
-}
-.health-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 2px;
-    transition: width 0.3s;
-}
-
-.explosion {
-    position: absolute;
-    border-radius: 50%;
-    animation: fadeOut 0.5s forwards;
-}
-
-@keyframes fadeOut {
-    to { opacity: 0; transform: scale(1.5); }
-}
-/* Barra de salud del Boss */
-.boss-health-bar {
-    transition: width 0.3s ease, background-color 0.3s ease;
-    box-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
-}
-
-/* Efecto especial para el Boss */
-.boss-enemy {
-    animation: boss-pulse 2s infinite;
-}
-
-@keyframes boss-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
-}
-/* Agrega esto al final de styles.css */
-
-@media (max-width: 480px) {
-    /* Ajustes adicionales para móviles muy pequeños */
-    h1 {
-        font-size: 2rem !important;
-    }
-    
-    #playerForm input,
-    #playerForm select,
-    #playerForm button {
-        padding: 0.5rem !important;
-    }
-    
-    /* Reducir tamaño de elementos del juego */
-    .ship {
-        width: 24px !important;
-        height: 38px !important;
-        font-size: 1.2rem !important;
-    }
-    
-    .shield-effect {
-        width: 40px !important;
-        height: 40px !important;
-    }
-}
-/* Añadir al final del archivo */
-@media (max-width: 768px) {
-    /* Asegurar que el canvas ocupe toda la pantalla */
-    #gameCanvas {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw !important;
-        height: 100vh !important;
-        touch-action: none;
-    }
-    
-    /* Ajustar UI para móviles */
-    #gameUI {
-        font-size: 14px;
-        padding: 8px;
-    }
-    
-    #gameUI > div {
-        padding: 6px;
-    }
-    
-    /* Ocultar elementos no esenciales en móviles */
-    #health {
-        display: none;
-    }
-}
-
-/* Estilos para los controles táctiles */
-.touch-controls {
-    position: fixed;
-    bottom: 20px;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    padding: 0 20px;
-    z-index: 100;
     opacity: 0.7;
-}
-
-.touch-button {
     width: 60px;
     height: 60px;
+  }
+  
+  .player-health, .health-bar {
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+  }
+  
+  .powerup-timer {
+    border-radius: 0 0 50% 50%;
+    transition: width 0.1s linear;
+  }
+  
+  .boss-health-bar {
+    transition: width 0.3s ease, background-color 0.3s ease;
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+  }
+  
+  .boss-enemy {
+    animation: boss-pulse 2s infinite;
+  }
+  
+  /* Añadir a styles.css */
+.combo-animation {
+    animation: pulse 0.3s infinite, glow 0.3s infinite alternate;
+    transform: scale(1.1);
+    transition: transform 0.2s;
+}
+
+/* Efectos específicos para combos altos */
+.combo-feedback {
+    animation: floatUp 1s ease-out forwards, combo-glow 0.5s infinite;
+    z-index: 100;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.combo-feedback.high-combo {
+    font-size: 28px !important;
+    text-shadow: 0 0 10px currentColor;
+}
+
+@keyframes combo-glow {
+    0% { text-shadow: 0 0 5px currentColor, 0 0 10px rgba(255,255,255,0.5); }
+    50% { text-shadow: 0 0 15px currentColor, 0 0 25px currentColor, 0 0 35px rgba(255,255,255,0.8); }
+    100% { text-shadow: 0 0 5px currentColor, 0 0 10px rgba(255,255,255,0.5); }
+}
+
+@keyframes godModeGlow {
+    0%, 100% { text-shadow: 0 0 10px #fff, 0 0 20px #ff0000, 0 0 30px #ff0000; }
+    50% { text-shadow: 0 0 20px #fff, 0 0 40px #ff0000, 0 0 60px #ff0000; }
+}
+
+
+.combo-end {
+    animation: floatUp 1.5s ease-out forwards;
+    z-index: 100;
+    text-shadow: 0 0 5px rgba(0,0,0,0.8);
+    opacity: 0.9;
+}
+
+/* Efectos específicos para combos altos */
+.combo-feedback.high-combo {
+    font-size: 28px !important;
+    animation: floatUp 1s ease-out forwards, combo-glow 0.3s infinite;
+}
+  
+  /* UI del juego */
+  #gameUI {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    z-index: 10;
+    pointer-events: none;
+    font-size: 16px;
+  }
+  
+  #pauseButton {
+    background-color: rgba(31, 41, 55, 0.8);
+    padding: 0.5rem;
+    border-radius: 9999px;
+    pointer-events: auto;
+    backdrop-filter: blur(5px);
+    border: none;
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Controles táctiles */
+  .touch-controls {
+    position: fixed;
+    bottom: 1rem;
+    left: 0;
+    right: 0;
+    display: none; /* Oculto por defecto */
+    justify-content: space-between;
+    padding: 0 1rem;
+    z-index: 100;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  
+  .touch-button {
+    width: 3.5rem;
+    height: 3.5rem;
     background-color: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 24px;
+    font-size: 1.5rem;
     user-select: none;
-}
-/* Estilos base para el canvas */
-#gameCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-
-/* Estilos específicos para mobile */
-.mobile-view #gameCanvas {
-    position: fixed;
-    touch-action: none;
-    width: 100vw !important;
-    height: 100vh !important;
-}
-
-/* Estilos específicos para desktop */
-.desktop-view #gameUI {
-    font-size: 16px;
-    padding: 10px;
-}
-
-.mobile-view #gameUI {
-    font-size: 14px;
-    padding: 5px;
-}
-
-/* Ocultar elementos no esenciales en móvil */
-.mobile-view #health {
-    display: none;
-}
-
-/* Ajustar controles táctiles solo en móvil */
-.mobile-view .touch-controls {
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+  
+  /* Media queries para responsive */
+  @media (max-width: 768px) {
+    .mobile-view .touch-controls {
+      display: flex;
+    }
+    
+    #gameUI {
+      font-size: 14px;
+      padding: 0.25rem;
+    }
+    
+    #health {
+      display: none;
+    }
+    
+    .ship {
+      width: 24px;
+      height: 38px;
+      font-size: 1.2rem;
+    }
+    
+    .shield-effect {
+      width: 40px;
+      height: 40px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    #playerForm input,
+    #playerForm select,
+    #playerForm button {
+      padding: 0.5rem;
+    }
+    
+    .touch-button {
+      width: 3rem;
+      height: 3rem;
+      font-size: 1.25rem;
+    }
+  }
+  /* Añadir a styles.css */
+#fpsToggle {
+    transition: all 0.3s ease;
+    width: 70px;
+    height: 40px;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
 }
 
-.desktop-view .touch-controls {
-    display: none;
+#fpsToggle.active {
+    color: limegreen;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+#fpsDisplay {
+    position: fixed;
+    top: 15px;
+    right: 140px;
+    color: limegreen;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 1000;
+    pointer-events: none;
 }
