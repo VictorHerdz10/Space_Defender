@@ -300,19 +300,19 @@ class Bullet {
         this.y = y;
         this.angle = angle;
         this.speed = isEnemy ? 7 : 10;
-        this.lifetime = 5000; // Aumentamos el tiempo de vida (5 segundos)
+        this.lifetime = 5000;
         this.born = Date.now();
-        this.size = 5;
+        this.size = isEnemy ? 8 : 5; // Tamaño más grande para balas enemigas
         this.isEnemy = isEnemy;
         this.damage = isEnemy ? 25 : 1;
+        this.glowIntensity = isEnemy ? 0.8 : 0; // Efecto de brillo para enemigos
     }
 
     update() {
         this.x += Math.cos(this.angle) * this.speed;
         this.y += Math.sin(this.angle) * this.speed;
     
-        // Eliminar solo si el tiempo de vida expira o sale completamente de pantalla
-        const margin = 50; // Margen fuera de la pantalla antes de eliminar
+        const margin = 50;
         if (Date.now() - this.born > this.lifetime || 
             this.x < -margin || this.x > this.game.gameWidth + margin || 
             this.y < -margin || this.y > this.game.gameHeight + margin) {
@@ -325,23 +325,34 @@ class Bullet {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
 
-        // Balas enemigas más largas y visibles
         if (this.isEnemy) {
+            // Efecto de brillo para balas enemigas
+            if (this.glowIntensity > 0) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff0000';
+            }
+            
+            // Cuerpo de la bala más grande y visible
             ctx.fillStyle = '#ef4444';
-            // Forma más larga para balas enemigas
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(20, 0);
-            ctx.lineWidth = this.size;
+            ctx.lineTo(30, 0); // Más larga que antes (era 20)
+            ctx.lineWidth = this.size * 1.5; // Más gruesa
             ctx.stroke();
             
-            // Punta de la bala
+            // Punta de la bala más grande
             ctx.fillStyle = '#ff0000';
             ctx.beginPath();
-            ctx.arc(20, 0, this.size/2, 0, Math.PI * 2);
+            ctx.arc(30, 0, this.size, 0, Math.PI * 2); // Radio más grande (era size/2)
+            ctx.fill();
+            
+            // Efecto de núcleo brillante
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(30, 0, this.size/2, 0, Math.PI * 2);
             ctx.fill();
         } else {
-            // Balas del jugador
+            // Balas del jugador (sin cambios o ajustes menores)
             ctx.fillStyle = '#f59e0b';
             ctx.fillRect(0, -this.size/2, 15, this.size);
         }
@@ -349,7 +360,6 @@ class Bullet {
         ctx.restore();
     }
 }
-
 class Enemy {
     constructor(game, x, y, health = 1, speed = 1.5, fireRate = 1000) {
         // Validar y aplicar modificadores de dificultad
